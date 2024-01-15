@@ -2,7 +2,59 @@ from freqtrade.strategy.interface import IStrategy
 import pandas as pd
 
 class VmaStrategy(IStrategy):
+    INTERFACE_VERSION = 3
 
+    # Optimal timeframe for the strategy.
+    timeframe = '15m'
+
+    # Can this strategy go short?
+    can_short: bool = False
+
+    # Minimal ROI designed for the strategy.
+    minimal_roi = {
+        "120": 0.01,
+        "60": 0.02,
+        "0": 0.04
+    }
+
+    # Optimal stoploss designed for the strategy.
+    stoploss = -0.05
+
+    # Trailing stoploss
+    trailing_stop = True
+    trailing_only_offset_is_reached = True
+    trailing_stop_positive = 0.02
+    trailing_stop_positive_offset = 0.03
+
+    # Run "populate_indicators()" only for new candle.
+    process_only_new_candles = True
+
+    # These values can be overridden in the config.
+    use_exit_signal = True
+    exit_profit_only = False
+    ignore_roi_if_entry_signal = False
+
+    # Number of candles the strategy requires before producing valid signals
+    startup_candle_count: int = 30
+
+    # Strategy parameters
+    buy_rsi = IntParameter(20, 50, default=30, space="buy")
+    sell_rsi = IntParameter(50, 80, default=70, space="sell")
+
+    # Optional order type mapping.
+    order_types = {
+        'entry': 'market',
+        'exit': 'market',
+        'stoploss': 'market',
+        'stoploss_on_exchange': False
+    }
+
+    # Optional order time in force.
+    order_time_in_force = {
+        'entry': 'GTC',
+        'exit': 'GTC'
+    }
+    
     def populate_indicators(self, dataframe: pd.DataFrame, metadata: dict) -> pd.DataFrame:
         l = 21  # Longitud de la VMA ajustada a 21
         k = 1.0 / l  # Factor de suavizado
@@ -53,24 +105,24 @@ class VmaStrategy(IStrategy):
 
         return dataframe
 
-    def populate_buy_trend(self, dataframe: pd.DataFrame, metadata: dict) -> pd.DataFrame:
+    def populate_entry_trend(self, dataframe: pd.DataFrame, metadata: dict) -> pd.DataFrame:
         dataframe.loc[
             (
                 (dataframe['close'] > dataframe['vma']) &  # El precio cruza por encima de la VMA
                 (dataframe['close'].shift(1) <= dataframe['vma'].shift(1)) &  # Confirmación del cruce en el período anterior
                 (dataframe['rsi'] < 66)  # RSI por debajo de 66 para evitar entrar en sobrecompra
             ),
-            'buy'] = 1
+            'enter_long'] = 1
 
         return dataframe
 
-    def populate_sell_trend(self, dataframe: pd.DataFrame, metadata: dict) -> pd.DataFrame:
+    def populate_exit_trend(self, dataframe: pd.DataFrame, metadata: dict) -> pd.DataFrame:
         dataframe.loc[
             (
                 (dataframe['close'] < dataframe['vma']) &  # El precio cruza por debajo de la VMA
                 (dataframe['close'].shift(1) >= dataframe['vma'].shift(1)) &  # Confirmación del cruce en el período anterior
                 (dataframe['rsi'] > 70)  # RSI en sobrecompra
             ),
-            'sell'] = 1
+            'exit_long'] = 1
 
         return dataframe
