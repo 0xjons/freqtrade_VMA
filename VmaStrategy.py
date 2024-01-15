@@ -55,6 +55,11 @@ class VmaStrategy(IStrategy):
         'exit': 'GTC'
     }
     
+    # Al usar ordenes de mercado para la entrada especificamos "other"
+    entry_pricing = {
+        'price_side' : 'other'
+    }
+    
     def populate_indicators(self, dataframe: pd.DataFrame, metadata: dict) -> pd.DataFrame:
         l = 21  # Longitud de la VMA ajustada a 21
         k = 1.0 / l  # Factor de suavizado
